@@ -1,0 +1,2344 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;
+    2 00000000         ;ENSE 352 Wack a mole term project
+    3 00000000         ;Author: Ammer Alvi (200374049)
+    4 00000000         ;file: Game.s
+    5 00000000         ;By interfacing with the STM32 descovery board, this pro
+                       gram replicates 
+    6 00000000         ;the popular wack a mole game. Moles are represented by 
+                       LEDs and corresponding pushbutton
+    7 00000000         ;must be pressed at the right time to succeed. No more t
+                       han 1 LED appearing at the same time.
+    8 00000000         ;LEDs are randomly lit. 
+    9 00000000         
+   10 00000000         ;;; Directives
+   11 00000000                 PRESERVE8
+   12 00000000                 THUMB
+   13 00000000         
+   14 00000000         
+   15 00000000         ;;; Equates
+   16 00000000         ;These are the adjustable paramaters for the game, for t
+                       ime constants 1024 value = 1 second
+   17 00000000 0001E000 
+                       LosingSignalTime
+                               EQU              122880      ; Time for when to 
+                                                            display the score a
+                                                            fter the user has l
+                                                            ost, equal to 1 min
+                                                            ute
+   18 00000000 0001E000 
+                       WinningSignalTime
+                               EQU              122880      ; Time for when to 
+                                                            display the winning
+                                                             LED pattern after 
+                                                            winning, equal to 1
+                                                             minute
+   19 00000000 0000012C 
+                       PrelimWaitTime
+                               EQU              300         ; Time to wait befo
+                                                            re a random LED tur
+                                                            ns on. Equal to app
+                                                            rox. 300ms
+   20 00000000 00000800 
+                       ReactTime
+                               EQU              2048        ; The maximum time 
+                                                            given to the user t
+                                                            o press the proper 
+                                                            button. Equal to 2 
+                                                            seconds.
+   21 00000000 00000010 
+                       NumCycles
+                               EQU              16          ; The maximum numbe
+                                                            r of cycles complet
+                                                            ed
+   22 00000000         
+   23 00000000 20001000 
+                       INITIAL_MSP
+                               EQU              0x20001000  ; Initial Main Stac
+                                                            k Pointer Value
+   24 00000000         
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   25 00000000         ;PORT A GPIO - Base Addr: 0x40010800
+   26 00000000 40010800 
+                       GPIOA_CRL
+                               EQU              0x40010800  ; (0x00) Port Confi
+                                                            guration Register f
+                                                            or Px7 -> Px0
+   27 00000000 40010804 
+                       GPIOA_CRH
+                               EQU              0x40010804  ; (0x04) Port Confi
+                                                            guration Register f
+                                                            or Px15 -> Px8
+   28 00000000 40010808 
+                       GPIOA_IDR
+                               EQU              0x40010808  ; (0x08) Port Input
+                                                             Data Register
+   29 00000000 4001080C 
+                       GPIOA_ODR
+                               EQU              0x4001080C  ; (0x0C) Port Outpu
+                                                            t Data Register
+   30 00000000 40010810 
+                       GPIOA_BSRR
+                               EQU              0x40010810  ; (0x10) Port Bit S
+                                                            et/Reset Register
+   31 00000000 40010814 
+                       GPIOA_BRR
+                               EQU              0x40010814  ; (0x14) Port Bit R
+                                                            eset Register
+   32 00000000 40010818 
+                       GPIOA_LCKR
+                               EQU              0x40010818  ; (0x18) Port Confi
+                                                            guration Lock Regis
+                                                            ter
+   33 00000000         
+   34 00000000         ;PORT B GPIO - Base Addr: 0x40010C00
+   35 00000000 40010C00 
+                       GPIOB_CRL
+                               EQU              0x40010C00  ; (0x00) Port Confi
+                                                            guration Register f
+                                                            or Px7 -> Px0
+   36 00000000 40010C04 
+                       GPIOB_CRH
+                               EQU              0x40010C04  ; (0x04) Port Confi
+                                                            guration Register f
+                                                            or Px15 -> Px8
+   37 00000000 40010C08 
+                       GPIOB_IDR
+                               EQU              0x40010C08  ; (0x08) Port Input
+                                                             Data Register
+   38 00000000 40010C0C 
+                       GPIOB_ODR
+                               EQU              0x40010C0C  ; (0x0C) Port Outpu
+                                                            t Data Register
+   39 00000000 40010C10 
+                       GPIOB_BSRR
+                               EQU              0x40010C10  ; (0x10) Port Bit S
+                                                            et/Reset Register
+   40 00000000 40010C14 
+                       GPIOB_BRR
+                               EQU              0x40010C14  ; (0x14) Port Bit R
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+                                                            eset Register
+   41 00000000 40010C18 
+                       GPIOB_LCKR
+                               EQU              0x40010C18  ; (0x18) Port Confi
+                                                            guration Lock Regis
+                                                            ter
+   42 00000000         
+   43 00000000         ;The onboard LEDS are on port C bits 8 and 9
+   44 00000000         ;PORT C GPIO - Base Addr: 0x40011000
+   45 00000000 40011000 
+                       GPIOC_CRL
+                               EQU              0x40011000  ; (0x00) Port Confi
+                                                            guration Register f
+                                                            or Px7 -> Px0
+   46 00000000 40011004 
+                       GPIOC_CRH
+                               EQU              0x40011004  ; (0x04) Port Confi
+                                                            guration Register f
+                                                            or Px15 -> Px8
+   47 00000000 40011008 
+                       GPIOC_IDR
+                               EQU              0x40011008  ; (0x08) Port Input
+                                                             Data Register
+   48 00000000 4001100C 
+                       GPIOC_ODR
+                               EQU              0x4001100C  ; (0x0C) Port Outpu
+                                                            t Data Register
+   49 00000000 40011010 
+                       GPIOC_BSRR
+                               EQU              0x40011010  ; (0x10) Port Bit S
+                                                            et/Reset Register
+   50 00000000 40011014 
+                       GPIOC_BRR
+                               EQU              0x40011014  ; (0x14) Port Bit R
+                                                            eset Register
+   51 00000000 40011018 
+                       GPIOC_LCKR
+                               EQU              0x40011018  ; (0x18) Port Confi
+                                                            guration Lock Regis
+                                                            ter
+   52 00000000         
+   53 00000000         ;Registers for configuring and enabling the clocks
+   54 00000000         ;RCC Registers - Base Addr: 0x40021000
+   55 00000000 40021000 
+                       RCC_CR  EQU              0x40021000  ; Clock Control Reg
+                                                            ister
+   56 00000000 40021004 
+                       RCC_CFGR
+                               EQU              0x40021004  ; Clock Configurati
+                                                            on Register
+   57 00000000 40021008 
+                       RCC_CIR EQU              0x40021008  ; Clock Interrupt R
+                                                            egister
+   58 00000000 4002100C 
+                       RCC_APB2RSTR
+                               EQU              0x4002100C  ; APB2 Peripheral R
+                                                            eset Register
+   59 00000000 40021010 
+                       RCC_APB1RSTR
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+                               EQU              0x40021010  ; APB1 Peripheral R
+                                                            eset Register
+   60 00000000 40021014 
+                       RCC_AHBENR
+                               EQU              0x40021014  ; AHB Peripheral Cl
+                                                            ock Enable Register
+                                                            
+   61 00000000 40021018 
+                       RCC_APB2ENR
+                               EQU              0x40021018  ; APB2 Peripheral C
+                                                            lock Enable Registe
+                                                            r  -- Used
+   62 00000000 4002101C 
+                       RCC_APB1ENR
+                               EQU              0x4002101C  ; APB1 Peripheral C
+                                                            lock Enable Registe
+                                                            r
+   63 00000000 40021020 
+                       RCC_BDCR
+                               EQU              0x40021020  ; Backup Domain Con
+                                                            trol Register
+   64 00000000 40021024 
+                       RCC_CSR EQU              0x40021024  ; Control/Status Re
+                                                            gister
+   65 00000000 4002102C 
+                       RCC_CFGR2
+                               EQU              0x4002102C  ; Clock Configurati
+                                                            on Register 2
+   66 00000000         
+   67 00000000 40002804 
+                       RTC_CRL EQU              0x40002804  ; RTC control regis
+                                                            ter low
+   68 00000000 4000280C 
+                       RTC_PRLL
+                               EQU              0x4000280C  ; RTC prescaler loa
+                                                            d register
+   69 00000000 40002818 
+                       RTC_CNTH
+                               EQU              0x40002818  ; RTC counter regis
+                                                            ter high
+   70 00000000 4000281C 
+                       RTC_CNTL
+                               EQU              0x4000281C  ; RTC counter regis
+                                                            ter low
+   71 00000000 40007000 
+                       PWR_CR  EQU              0x40007000  ; Power control reg
+                                                            ister
+   72 00000000         
+   73 00000000         ; Times for delay routines
+   74 00000000         
+   75 00000000 00186A00 
+                       DELAYTIME
+                               EQU              1600000     ; (200 ms/24MHz PLL
+                                                            )
+   76 00000000         
+   77 00000000         
+   78 00000000         ; Vector Table Mapped to Address 0 at Reset
+   79 00000000                 AREA             RESET, Data, READONLY
+   80 00000000                 EXPORT           __Vectors
+
+
+
+ARM Macro Assembler    Page 5 
+
+
+   81 00000000         
+   82 00000000 20001000 
+                       __Vectors
+                               DCD              INITIAL_MSP ; stack pointer val
+                                                            ue when stack is em
+                                                            pty
+   83 00000004 00000000        DCD              Reset_Handler ; reset vector
+   84 00000008         
+   85 00000008                 AREA             MYCODE, CODE, READONLY
+   86 00000000                 EXPORT           Reset_Handler
+   87 00000000                 ENTRY
+   88 00000000         
+   89 00000000         Reset_Handler
+                               PROC
+   90 00000000         
+   91 00000000 F7FF FFFE       BL               GPIO_ClockInit ; initializing t
+                                                            he clocks to all th
+                                                            e ports that will b
+                                                            e used
+   92 00000004 F7FF FFFE       BL               GPIO_init   ; initializing the 
+                                                            general purpose pin
+                                                            s to specified conf
+                                                            iguration
+   93 00000008 F7FF FFFE       bl               LED_OFF     ; turing the LED's 
+                                                            off initially
+   94 0000000C F7FF FFFE       bl               RTC_init    ; initializing the 
+                                                            Real Time Clock (RT
+                                                            C) counter to start
+                                                             counting 
+   95 00000010         
+   96 00000010         mainLoop
+   97 00000010 F04F 0C10       ldr              r12,=NumCycles ; Getting the nu
+                                                            mber of turns to be
+                                                             played by the user
+                                                             and storing it in 
+                                                            r12
+   98 00000014 F44F 6B00       ldr              r11,=ReactTime ; Getting the re
+                                                            action time limit a
+                                                            nd storing it in r1
+                                                            1
+   99 00000018 F04F 0900       mov              r9, #0      ; initializing the 
+                                                            score to be equal t
+                                                            o zero
+  100 0000001C F7FF FFFE       bl               WaitingForPlayer ; Entering the
+                                                             waiting for player
+                                                             state
+  101 00000020 F7FF FFFE       bl               PlayGame    ; When the user is 
+                                                            ready, they start t
+                                                            he actual game
+  102 00000024 E7F4            B                mainLoop    ; Once the game is 
+                                                            played, branch back
+                                                             to the mainLoop to
+                                                             start again
+  103 00000026         
+  104 00000026                 ENDP
+  105 00000026         
+  106 00000026         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  107 00000026         ;---------------------------------------Subroutines-----
+
+
+
+ARM Macro Assembler    Page 6 
+
+
+                       --------------------------------------------
+  108 00000026         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  109 00000026         ; The waiting for player subroutine, generates a waiting
+                        menu in which
+  110 00000026         ; an LED pattern is displayed until the user presses any
+                        button indicating
+  111 00000026         ; that they are ready to exit the menu.
+  112 00000026         ; The subroutine has no inputs or output registers, it i
+                       s simply a state that the user can stay
+  113 00000026         ; in for as long as they wish
+  114 00000026         
+  115 00000026 00 00           align
+  116 00000028         WaitingForPlayer
+                               proc
+  117 00000028 B500            push             {lr}        ; store link regist
+                                                            er in stack to get 
+                                                            back to mainloop
+  118 0000002A         Wait_loop                            ; start the loop fo
+                                                            r the waiting patte
+                                                            rn
+  119 0000002A F7FF FFFE       bl               LED_OFF     ; turn the LED's of
+                                                            f
+  120 0000002E F04F 0364       mov              r3,#100     ; Delay for approx.
+                                                             100 ms
+  121 00000032 F7FF FFFE       bl               Delay
+  122 00000036         
+  123 00000036 F44F 52E0       ldr              r2,=0x1c00  ; Turn on the first
+                                                             LED
+  124 0000003A F7FF FFFE       bl               TurnOnLED
+  125 0000003E F7FF FFFE       bl               Get_Buttons ; Check if there is
+                                                             any input from the
+                                                             buttons
+  126 00000042 F5B0 5FF0       cmp              r0, #0x1e00 ; Check if its in n
+                                                            ormal state(0x1e00 
+                                                            becasue active low)
+                                                            ..
+  127 00000046 D142            bne              buttonPressed ; ..if button is 
+                                                            pressed, branch for
+                                                            word to 'buttonPres
+                                                            sed' label
+  128 00000048 F04F 0364       mov              r3,#100     ; Delay for approx.
+                                                             100 ms
+  129 0000004C F7FF FFFE       bl               Delay
+  130 00000050         
+  131 00000050 F44F 52C0       ldr              r2,=0x1800  ; Turing on the sec
+                                                            ond LED
+  132 00000054 F7FF FFFE       bl               TurnOnLED
+  133 00000058 F7FF FFFE       bl               Get_Buttons ; Checking for any 
+                                                            input from the butt
+                                                            ons
+  134 0000005C F5B0 5FF0       cmp              r0, #0x1e00
+  135 00000060 D135            bne              buttonPressed ; When pressed br
+                                                            anch out
+  136 00000062 F04F 0364       mov              r3,#100     ; Delay for approx.
+                                                             100 ms
+  137 00000066 F7FF FFFE       bl               Delay
+  138 0000006A         
+  139 0000006A F44F 5290       ldr              r2,=0x1200  ; Turning off first
+
+
+
+ARM Macro Assembler    Page 7 
+
+
+                                                             LED and turn on th
+                                                            ird LED
+  140 0000006E F7FF FFFE       bl               TurnOnLED
+  141 00000072 F7FF FFFE       bl               Get_Buttons ; Get the button st
+                                                            ate
+  142 00000076 F5B0 5FF0       cmp              r0, #0x1e00
+  143 0000007A D128            bne              buttonPressed ; if pressed, bra
+                                                            nch out
+  144 0000007C F04F 0364       mov              r3,#100     ; 100 ms delay
+  145 00000080 F7FF FFFE       bl               Delay
+  146 00000084         
+  147 00000084 F44F 62C0       ldr              r2,=0x600   ; Turn off the seco
+                                                            nd LED, turn on fou
+                                                            rth LED
+  148 00000088 F7FF FFFE       bl               TurnOnLED
+  149 0000008C F7FF FFFE       bl               Get_Buttons ; Get button state
+  150 00000090 F5B0 5FF0       cmp              r0, #0x1e00
+  151 00000094 D11B            bne              buttonPressed ; if pressed, bra
+                                                            nch out
+  152 00000096 F04F 0364       mov              r3,#100     ; 100ms delay
+  153 0000009A F7FF FFFE       bl               Delay
+  154 0000009E         
+  155 0000009E F44F 6260       ldr              r2,=0xe00   ; Turn off third LE
+                                                            D
+  156 000000A2 F7FF FFFE       bl               TurnOnLED
+  157 000000A6 F7FF FFFE       bl               Get_Buttons ; Get button state
+  158 000000AA F5B0 5FF0       cmp              r0, #0x1e00
+  159 000000AE D10E            bne              buttonPressed ; branch out if b
+                                                            utton pressed
+  160 000000B0 F04F 0364       mov              r3,#100     ; 100ms delay
+  161 000000B4 F7FF FFFE       bl               Delay
+  162 000000B8         
+  163 000000B8 F7FF FFFE       bl               LED_OFF     ; Turn LEDs off
+  164 000000BC F04F 0364       mov              r3,#100     ; 100ms delay
+  165 000000C0 F7FF FFFE       bl               Delay
+  166 000000C4         
+  167 000000C4 F7FF FFFE       bl               Get_Buttons ; Get button state 
+                                                            one last time
+  168 000000C8 F5B0 5FF0       cmp              r0, #0x1e00 ; if no button is p
+                                                            ressed branch back 
+                                                            to wait_loop..
+  169 000000CC D0AD            beq              Wait_loop   ; ... and repeat th
+                                                            e LED pattern
+  170 000000CE         buttonPressed
+  171 000000CE F7FF FFFE       bl               LED_OFF     ; Turn LED OFF
+  172 000000D2 F7FF FFFE       bl               WaitForButtonRelease ; Wait unt
+                                                            il pressed button h
+                                                            as been released, a
+                                                            nd then continue
+  173 000000D6 F44F 7300       mov              r3,#512     ; 500ms delay
+  174 000000DA F7FF FFFE       bl               Delay
+  175 000000DE F85D EB04       pop{lr}                      ; Get the previousl
+                                                            y stored link regis
+                                                            ter value
+  176 000000E2 4770            bx               lr          ; branch back
+  177 000000E4                 LTORG                        ; Used to avoid pro
+                                                            blems with ldr stat
+                                                            ements
+  178 000000E4                 endp
+
+
+
+ARM Macro Assembler    Page 8 
+
+
+  179 000000E4         
+  180 000000E4         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+  181 000000E4         ;The PlayGame subroutine is when the playing of the actu
+                       al game happens.
+  182 000000E4         ; This subroutine defines the logic of wack a mole game 
+                       by first having a 
+  183 000000E4         ; preliminary delay, then a random led turns on, then de
+                       termine what action
+  184 000000E4         ; took place i.e the correspodning button pressed, wrong
+                        button pressed, or 
+  185 000000E4         ; time ran out. From those decisions, it is determined i
+                       f game was lost or to continue
+  186 000000E4         ; playing. Once all the cycles are completed, game has b
+                       een won
+  187 000000E4                 align
+  188 000000E4         PlayGame
+                               proc
+  189 000000E4 B500            push{lr}                     ; Store the link re
+                                                            gister in stack
+  190 000000E6 F44F 7396       ldr              r3,=PrelimWaitTime
+  191 000000EA F7FF FFFE       bl               Delay       ; Wait for a specif
+                                                            ied period of time 
+                                                            before turning on L
+                                                            ED
+  192 000000EE F7FF FFFE       bl               Random_LED  ; Light a random LE
+                                                            D
+  193 000000F2 F7FF FFFE       bl               GetState    ; Based on user inp
+                                                            ut, determine if us
+                                                            er has lost or shou
+                                                            ld continue playing
+                                                            
+  194 000000F6 F7FF FFFE       bl               LED_OFF     ; Turn the LED off
+  195 000000FA F85D EB04       pop{lr}                      ; Pop the link regi
+                                                            ster form the stack
+                                                            
+  196 000000FE F5BB 7F00       cmp              r11,#512    ; Determine if the 
+                                                            activation time has
+                                                             reached minimum of
+                                                             500 ms
+  197 00000102 D301            blo              MinimumTimeReached ; If the act
+                                                            ive time of LED's i
+                                                            s reached less than
+                                                             500 ms, skip the n
+                                                            ext bit of code
+  198 00000104 F1AB 0B60       sub              r11,#96     ; If the active tim
+                                                            e of LED's is great
+                                                            er than 500 ms, sub
+                                                            tract the active ti
+                                                            me by 100 ms
+  199 00000108         MinimumTimeReached
+  200 00000108 F1AC 0C01       sub              r12,#1      ; Decrement the num
+                                                            ber of cycles count
+                                                            er
+  201 0000010C F1BC 0F00       cmp              r12,#0      ; If the counter ha
+                                                            s reached zero...
+  202 00000110 D1FE            bne              PlayGame    ; ...the player has
+                                                             won, or else branc
+                                                            h back to the PlayG
+
+
+
+ARM Macro Assembler    Page 9 
+
+
+                                                            ame subroutine
+  203 00000112 B500            push{lr}                     ; Store link regist
+                                                            er into stack
+  204 00000114 F7FF FFFE       bl               LED_OFF     ; Turn the LEDs off
+                                                            
+  205 00000118 F44F 7300       mov              r3,#512     ; Delay for 500ms
+  206 0000011C F7FF FFFE       bl               Delay
+  207 00000120 F7FF FFFE       bl               GameWon     ; Display the Game 
+                                                            winning LED pattern
+                                                            
+  208 00000124 F85D EB04       pop{lr}                      ; Get the stored li
+                                                            nk register value f
+                                                            rom the stack
+  209 00000128 4770            bx               lr          ; branch back to ma
+                                                            in loop
+  210 0000012A                 endp
+  211 0000012A         
+  212 0000012A         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  213 0000012A         ; GetState subroutine determines how the user has respon
+                       ded to the random LED lit up.
+  214 0000012A         ; If the user presses the corresponding button branch to
+                        next, and continue to the next stage.
+  215 0000012A         ; If the user presses the any other wrong button, branch
+                        to game lost
+  216 0000012A         ; If the user doesn't press any button and time expires,
+                        branch to game lost
+  217 0000012A 00 00           align
+  218 0000012C         GetState
+                               proc
+  219 0000012C B500            push{lr}                     ; Store link regist
+                                                            er in stack
+  220 0000012E F7FF FFFE       bl               GetRTCCountVal ; Getting the cu
+                                                            rrent RTC register 
+                                                            counter value
+  221 00000132 EB00 030B       add              r3, r0, r11 ; Add the reaction 
+                                                            time to the current
+                                                             RTC counter value
+  222 00000136         loop_delay                           ; Entering the reac
+                                                            t time delay loop
+  223 00000136 F7FF FFFE       bl               Get_Buttons ; Getting the state
+                                                             of the buttons
+  224 0000013A 4550            cmp              r0,r10      ; Compare whether t
+                                                            he button pressed c
+                                                            orresponds to the L
+                                                            ED that is lit
+  225 0000013C BF08 F109 
+              0901             addeq            r9,#1       ; If its true then 
+                                                            increment the score
+                                                             count by 1
+  226 00000142 D008            beq              next        ; If its true then 
+                                                            branch to the label
+                                                             called next to exi
+                                                            t the loop and cont
+                                                            inue to next cycle
+  227 00000144 F5B0 5FF0       cmp              r0, #0x1e00 ; compare to determ
+                                                            ine if no button wa
+                                                            s pressed..
+  228 00000148 D000            beq              continue    ; If its true no bu
+
+
+
+ARM Macro Assembler    Page 10 
+
+
+                                                            tton was pressed th
+                                                            en branch to contin
+                                                            ue
+  229 0000014A E7FE            b                GameLost    ; If a button was p
+                                                            ressed but it was a
+                                                             wrong one, then th
+                                                            e user has lost the
+                                                             game, branching to
+                                                             GameLost
+  230 0000014C         continue                             ; Continue branch t
+                                                            hat continues on wi
+                                                            th the loop if ther
+                                                            e is no button pres
+                                                            sed
+  231 0000014C F7FF FFFE       bl               GetRTCCountVal ; Getting the cu
+                                                            rrent RTC counter v
+                                                            alue
+  232 00000150 4298            cmp              r0, r3      ; Compare the RTC c
+                                                            ounter value to the
+                                                             see if it has reac
+                                                            hed the reaction ti
+                                                            me
+  233 00000152 D3F0            blo              loop_delay  ; If the RTC counte
+                                                            r value is less tha
+                                                            n the reaction time
+                                                             value then loop ag
+                                                            ain
+  234 00000154 E7FE            b                GameLost    ; If the reaction t
+                                                            ime has expired the
+                                                            n the user has lost
+                                                            , branch to GameLos
+                                                            t
+  235 00000156         next                                 ; next label used t
+                                                            o get to the next c
+                                                            ycle if the user ha
+                                                            s pressed the right
+                                                             button
+  236 00000156 F7FF FFFE       bl               LED_OFF     ; turn the led off
+  237 0000015A F85D EB04       pop{lr}                      ; Get the stored li
+                                                            nk register value f
+                                                            rom stack
+  238 0000015E 4770            bx               lr          ; branch back to Pl
+                                                            ayGame
+  239 00000160                 LTORG
+  240 00000160                 endp
+  241 00000160         
+  242 00000160         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  243 00000160         ; GameWon subroutine displays the winning LED pattern wh
+                       ich are 2 LED's on left or right going
+  244 00000160         ; back and forth in a clapping motion. ex: 1001 => 0110 
+                       => 1001 ...
+  245 00000160                 align
+  246 00000160         GameWon proc
+  247 00000160 B500            push{lr}                     ; store link regist
+                                                            er in stack
+  248 00000162 F44F 34F0       ldr              r4,=WinningSignalTime ; Getting
+                                                             the winning signal
+                                                             time and store in 
+
+
+
+ARM Macro Assembler    Page 11 
+
+
+                                                            r4
+  249 00000166 F7FF FFFE       bl               GetRTCCountVal ; Getting the cu
+                                                            rrent RTC counter v
+                                                            alue
+  250 0000016A 4404            add              r4, r0, r4  ; Adding the curren
+                                                            t RTC counter value
+                                                             to winning signal 
+                                                            time      
+  251 0000016C         WinningSignal_loop                   ; Entering a loop
+  252 0000016C F44F 6240       ldr              r2,=0xc00   ; Turn on first LED
+                                                             and fourth LED
+  253 00000170 F7FF FFFE       bl               TurnOnLED
+  254 00000174 F7FF FFFE       bl               Get_Buttons ; Get current butto
+                                                            n state
+  255 00000178 F5B0 5FF0       cmp              r0, #0x1e00 ; Check to see if i
+                                                            t has been pressed
+  256 0000017C D114            bne              ExitingState ; If it has been p
+                                                            ressed branch outsi
+                                                            de the loop
+  257 0000017E F04F 0382       mov              r3,#130     ; Delay for aboout 
+                                                            130 ms
+  258 00000182 F7FF FFFE       bl               Delay
+  259 00000186 F44F 5290       ldr              r2,=0x1200  ; Turn on second an
+                                                            d third LED
+  260 0000018A F7FF FFFE       bl               TurnOnLED
+  261 0000018E F7FF FFFE       bl               Get_Buttons ; Get the current b
+                                                            utton state
+  262 00000192 F5B0 5FF0       cmp              r0, #0x1e00 ; Check to see if i
+                                                            t has been pressed
+  263 00000196 D107            bne              ExitingState ; Exit the loop if
+                                                             a button has been 
+                                                            pressed
+  264 00000198 F04F 0382       mov              r3,#130     ; Delay for another
+                                                             130 ms
+  265 0000019C F7FF FFFE       bl               Delay
+  266 000001A0 F7FF FFFE       bl               GetRTCCountVal ; Get the curren
+                                                            t RTC counter value
+                                                            
+  267 000001A4 42A0            cmp              r0, r4      ; Checking if the c
+                                                            ounter value has re
+                                                            ached winning signa
+                                                            l time
+  268 000001A6 D3E1            blo              WinningSignal_loop ; If it the 
+                                                            counter value is le
+                                                            ss than the winning
+                                                             signal loop back
+  269 000001A8         ExitingState                         ; Label used to go 
+                                                            outside the signal 
+                                                            
+  270 000001A8 F7FF FFFE       bl               LED_OFF     ; Turn LEDs off
+  271 000001AC F7FF FFFE       bl               WaitForButtonRelease ; Wait unt
+                                                            il button has been 
+                                                            released 
+  272 000001B0 F85D EB04       pop{lr}                      ; Get the stored li
+                                                            nk register 
+  273 000001B4 4770            bx               lr          ; branch back to th
+                                                            e main loop and sta
+                                                            rt game again
+  274 000001B6                 endp
+
+
+
+ARM Macro Assembler    Page 12 
+
+
+  275 000001B6         
+  276 000001B6         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  277 000001B6         ; GameLost subroutines displays the score the user got b
+                       efore losing
+  278 000001B6         ; The score is displayed in a flashing LEDs using binary
+                        values from most significant bit on left
+  279 000001B6 00 00           align
+  280 000001B8         GameLost
+                               proc
+  281 000001B8 F7FF FFFE       bl               LED_OFF     ; Turn off the LEDs
+                                                            
+  282 000001BC F7FF FFFE       bl               WaitForButtonRelease ; Wait unt
+                                                            il button has been 
+                                                            released 
+  283 000001C0 F44F 7300       mov              r3,#512     ; Delay for 500 ms
+  284 000001C4 F7FF FFFE       bl               Delay
+  285 000001C8 F1B9 0F00       cmp              r9, #0      ; Check if the scor
+                                                            e was zero
+  286 000001CC D0FE            beq              LED_Blink1  ; if the score is z
+                                                            ero display the LED
+                                                             that shows a score
+                                                             of zero
+  287 000001CE F1B9 0F0F       cmp              r9, #15     ; Check if the scor
+                                                            e scored is higher 
+                                                            than 15 (maximum bi
+                                                            nary value that can
+                                                             be 4bits)
+  288 000001D2 D8FE            bhi              LED_Blink2  ; Display the LED t
+                                                            hat indicates a sco
+                                                            re higher than 15
+  289 000001D4 F7FF FFFE       bl               ChangeOrderOfBits ; Change the 
+                                                            order of bits of th
+                                                            e score that is acc
+                                                            umulated to display
+                                                             properly on LEDs
+  290 000001D8 EA6F 0909       mvn              r9,r9       ; invert the score 
+                                                            bits beacuse the LE
+                                                            Ds are active low
+  291 000001DC F009 090F       and              r9,#0xf     ; Get the first 4 b
+                                                            its
+  292 000001E0 EA4F 2949       lsl              r9, #9      ; Shift left by 9, 
+                                                            ready to be outpute
+                                                            d to LEDs
+  293 000001E4 F44F 34F0       ldr              r4,=LosingSignalTime ; Get the 
+                                                            losing signal time 
+                                                            
+  294 000001E8 F7FF FFFE       bl               GetRTCCountVal ; Get the curren
+                                                            t RTC value
+  295 000001EC 4404            add              r4, r0, r4  ; Add the current R
+                                                            TC count to losing 
+                                                            signal time
+  296 000001EE         losingSignal_loop
+  297 000001EE 464A            mov              r2, r9      ; Output the score 
+                                                            to the LEDs
+  298 000001F0 F7FF FFFE       bl               TurnOnLED
+  299 000001F4 F7FF FFFE       bl               Get_Buttons ; Get the button st
+                                                            ate
+  300 000001F8 F5B0 5FF0       cmp              r0, #0x1e00 ; Check if the butt
+
+
+
+ARM Macro Assembler    Page 13 
+
+
+                                                            on has been pressed
+                                                            
+  301 000001FC D112            bne              ButtonPressed2 ; Exit the loop 
+                                                            if a button pressee
+                                                            d
+  302 000001FE F04F 0364       mov              r3,#100     ; Delay for 100ms
+  303 00000202 F7FF FFFE       bl               Delay
+  304 00000206 F7FF FFFE       bl               LED_OFF     ; Turn LEDs off
+  305 0000020A F7FF FFFE       bl               Get_Buttons ; Get button state
+  306 0000020E F5B0 5FF0       cmp              r0, #0x1e00 ; Check if the butt
+                                                            on has been pressed
+                                                            
+  307 00000212 D107            bne              ButtonPressed2 ; Exit the loop 
+                                                            if a button has bee
+                                                            n pressed
+  308 00000214 F04F 0364       mov              r3,#100     ; Delay for 100ms
+  309 00000218 F7FF FFFE       bl               Delay
+  310 0000021C F7FF FFFE       bl               GetRTCCountVal ; Get the curren
+                                                            t RTC counter value
+                                                            
+  311 00000220 42A0            cmp              r0, r4      ; Compare with losi
+                                                            ng signal time
+  312 00000222 D3E4            blo              losingSignal_loop 
+                                                            ; Loop if its lower
+                                                            
+  313 00000224         
+  314 00000224         ButtonPressed2                       ; label used to exi
+                                                            t loop
+  315 00000224 F7FF FFFE       bl               LED_OFF     ; turn leds off
+  316 00000228 F7FF FFFE       bl               WaitForButtonRelease ; wait unt
+                                                            il the button press
+                                                            ed is released
+  317 0000022C F85D EB04       pop{lr}                      ; get the stored li
+                                                            nk register from th
+                                                            e stack and exit..
+  318 00000230 F85D EB04       pop{lr}                      ; ..to the mainloop
+                                                            
+  319 00000234         
+  320 00000234 4770            bx               lr
+  321 00000236                 endp
+  322 00000236         
+  323 00000236         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  324 00000236         ; LED_Blink2 blink all 4 red LEDs and the orange LED ind
+                       icating score greater than 15
+  325 00000236 00 00           ALIGN
+  326 00000238         LED_Blink2
+                               PROC
+  327 00000238         
+  328 00000238 F44F 34F0       ldr              r4,=LosingSignalTime ; Get the 
+                                                            losing signal time
+  329 0000023C F7FF FFFE       bl               GetRTCCountVal ; get rtc counte
+                                                            r value
+  330 00000240 4404            add              r4, r0, r4  ; add the counter v
+                                                            alue to losing sign
+                                                            al time
+  331 00000242         losingSignal_loop3
+  332 00000242 4994            ldr              r1,=GPIOC_ODR ; turn on the ora
+                                                            nge LED
+
+
+
+ARM Macro Assembler    Page 14 
+
+
+  333 00000244 F44F 7000       mov              r0,#0x200
+  334 00000248 6008            str              r0,[r1]
+  335 0000024A F04F 0200       mov              r2, #0      ; turn on the red L
+                                                            EDs
+  336 0000024E F7FF FFFE       bl               TurnOnLED
+  337 00000252 F7FF FFFE       bl               Get_Buttons ; Get the button st
+                                                            ate
+  338 00000256 F5B0 5FF0       cmp              r0, #0x1e00
+  339 0000025A D114            bne              ButtonPressed3 ; if pressed, br
+                                                            anch out the loop
+  340 0000025C F04F 0364       mov              r3,#100
+  341 00000260 F7FF FFFE       bl               Delay       ; delay for 100ms
+  342 00000264 F7FF FFFE       bl               LED_OFF     ; turn the 4 red le
+                                                            ds off
+  343 00000268 498A            ldr              r1,=GPIOC_ODR ; turn off the or
+                                                            ange LED
+  344 0000026A 6808            ldr              r0,[r1]
+  345 0000026C F46F 7200       mvn              r2,#0x200
+  346 00000270 EA00 0002       and              r0,r2
+  347 00000274 6008            str              r0,[r1]
+  348 00000276 F04F 0364       mov              r3, #100    ; delay for 100ms
+  349 0000027A F7FF FFFE       bl               Delay
+  350 0000027E F7FF FFFE       bl               GetRTCCountVal ; get the rtc co
+                                                            unter value
+  351 00000282 42A0            cmp              r0, r4      ; check if it has r
+                                                            eached the losing s
+                                                            ignal time
+  352 00000284 D3DD            blo              losingSignal_loop3 ; loop if th
+                                                            e counter value is 
+                                                            lower
+  353 00000286         ButtonPressed3
+  354 00000286 4983            ldr              r1,=GPIOC_ODR ; clear the LEDs
+  355 00000288 F04F 0000       mov              r0,#0
+  356 0000028C 6008            str              r0,[r1]
+  357 0000028E F7FF FFFE       bl               WaitForButtonRelease ; Wait unt
+                                                            il button pressed h
+                                                            as been released
+  358 00000292 F85D EB04       pop{lr}                      ; branch back to ma
+                                                            inloop
+  359 00000296 F85D EB04       pop{lr}
+  360 0000029A         
+  361 0000029A 4770            BX               LR
+  362 0000029C                 ENDP
+  363 0000029C         
+  364 0000029C         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  365 0000029C         ; LED_Blink1 blinks the blue LED indicating score of zer
+                       o. 
+  366 0000029C         ; The subroutine follows the exact same procedure as LED
+                       _Blink2 subroutine except we are only
+  367 0000029C         ; flashing the blue LED on the STM board
+  368 0000029C         
+  369 0000029C                 ALIGN
+  370 0000029C         LED_Blink1
+                               PROC
+  371 0000029C F44F 34F0       ldr              r4,=LosingSignalTime
+  372 000002A0 F7FF FFFE       bl               GetRTCCountVal
+  373 000002A4 4404            add              r4, r0, r4
+  374 000002A6         losingSignal_loop2
+
+
+
+ARM Macro Assembler    Page 15 
+
+
+  375 000002A6 497B            ldr              r1,=GPIOC_ODR ; Output to port 
+                                                            C for blue LED
+  376 000002A8 F44F 7080       mov              r0,#0x100
+  377 000002AC 6008            str              r0,[r1]
+  378 000002AE         
+  379 000002AE F7FF FFFE       bl               Get_Buttons
+  380 000002B2 F5B0 5FF0       cmp              r0, #0x1e00
+  381 000002B6 D112            bne              ButtonPressed4
+  382 000002B8 F04F 0364       mov              r3, #100
+  383 000002BC F7FF FFFE       bl               Delay
+  384 000002C0         
+  385 000002C0 4974            ldr              r1,=GPIOC_ODR ; Clear the blue 
+                                                            LED on the STM boar
+                                                            d
+  386 000002C2 6808            ldr              r0,[r1]
+  387 000002C4 F46F 7280       mvn              r2,#0x100
+  388 000002C8 EA00 0002       and              r0,r2
+  389 000002CC 6008            str              r0,[r1]
+  390 000002CE         
+  391 000002CE F04F 0364       mov              r3, #100
+  392 000002D2 F7FF FFFE       bl               Delay
+  393 000002D6 F7FF FFFE       bl               GetRTCCountVal
+  394 000002DA 42A0            cmp              r0, r4
+  395 000002DC D3E3            blo              losingSignal_loop2
+  396 000002DE         ButtonPressed4
+  397 000002DE 496D            ldr              r1,=GPIOC_ODR
+  398 000002E0 F04F 0000       mov              r0,#0
+  399 000002E4 6008            str              r0,[r1]
+  400 000002E6 F7FF FFFE       bl               WaitForButtonRelease
+  401 000002EA F85D EB04       pop{lr}
+  402 000002EE F85D EB04       pop{lr}
+  403 000002F2 4770            BX               LR
+  404 000002F4                 ENDP
+  405 000002F4         
+  406 000002F4         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  407 000002F4         ; WaitForButtonRelease is a general subroutine that is u
+                       sed by the major subroutines above.
+  408 000002F4         ; The main purpose of it is that it keeps looping until 
+                       the buttons are in their neutral state.
+  409 000002F4         ; This written to ensure that the button press by the us
+                       er does not affect the next stages that 
+  410 000002F4         ; also rely on button input
+  411 000002F4         
+  412 000002F4                 align
+  413 000002F4         WaitForButtonRelease
+                               proc
+  414 000002F4 B500            push{lr}                     ; store link regist
+                                                            er in stack
+  415 000002F6 F7FF FFFE       bl               Get_Buttons ; Get the button st
+                                                            ate
+  416 000002FA F85D EB04       pop{lr}
+  417 000002FE F5B0 5FF0       cmp              r0, #0x1e00 ; check to see if n
+                                                            o button is pressed
+                                                             (0x1e00 because it
+                                                            s active low)
+  418 00000302 D1FE            bne              WaitForButtonRelease ; If a but
+                                                            ton is still being 
+                                                            pressed, the keep l
+
+
+
+ARM Macro Assembler    Page 16 
+
+
+                                                            ooping
+  419 00000304 4770            bx               lr          ; Exit the subrouti
+                                                            ne once a button ha
+                                                            s been released
+  420 00000306                 endp
+  421 00000306         
+  422 00000306         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  423 00000306         ; Get_Buttons subroutine basically reads the input data 
+                       registers for the pushbuttons on the
+  424 00000306         ; pcb. It detects input at each pushbutton and does bit 
+                       manipulation to combine the values into 
+  425 00000306         ; the corresponding and equivalent form of the LED ouput
+                        registers. The result is ouputed to R0.
+  426 00000306 00 00           align
+  427 00000308         Get_Buttons
+                               proc
+  428 00000308 4963            ldr              r1,=GPIOB_IDR ; reading the red
+                                                             and black pushbutt
+                                                            ons in port B
+  429 0000030A 6808            ldr              r0,[r1]
+  430 0000030C F400 7040       and              r0,#0x300   ; isolating the val
+                                                            ues for PB8 (red) a
+                                                            nd PB9 (black)
+  431 00000310 EA4F 0040       lsl              r0,#1       ; shift left by 1 t
+                                                            o place the bits in
+                                                             corresponding LED 
+                                                            ouput register form
+                                                            at
+  432 00000314 4961            ldr              r1,=GPIOC_IDR ; reading the blu
+                                                            e push button in po
+                                                            rt C 
+  433 00000316 680A            ldr              r2,[r1]
+  434 00000318 F402 5280       and              r2,#0x1000  ; isolating the val
+                                                            ue for PC12 (blue)
+  435 0000031C EA4F 0252       lsr              r2,#1       ; shift right by 1 
+                                                            to place it in corr
+                                                            esponding LED ouput
+                                                             register format
+  436 00000320 EA40 0002       orr              r0,r2       ; combine the data 
+                                                            for red & black pus
+                                                            h buttons and blue 
+                                                            push button by OR l
+                                                            ogic
+  437 00000324 495E            ldr              r1,=GPIOA_IDR ; reading the inp
+                                                            ut of greed pushbut
+                                                            ton in port A
+  438 00000326 680A            ldr              r2,[r1]
+  439 00000328 F002 0220       and              r2,#0x20    ; isolating the vla
+                                                            ue for PA5
+  440 0000032C EA4F 12C2       lsl              r2,#7       ; shift left by 7 t
+                                                            o place it in the c
+                                                            orresponding LED ou
+                                                            put register format
+                                                            
+  441 00000330 EA40 0002       orr              r0,r2       ; Combine the data 
+                                                            for all pushbuttons
+                                                             ainto single regsi
+                                                            ter R0 ready for ou
+
+
+
+ARM Macro Assembler    Page 17 
+
+
+                                                            tput
+  442 00000334 4770            bx               lr          ; exit the subrouti
+                                                            ne
+  443 00000336                 endp
+  444 00000336         
+  445 00000336         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  446 00000336         ; GetRTCCountVal subroutine gets the counter value from 
+                       the RTC clock counter and ouputs it to
+  447 00000336         ; R0.
+  448 00000336 00 00           align
+  449 00000338         GetRTCCountVal
+                               proc
+  450 00000338 495A            ldr              r1,=RTC_CNTH ; Reading the RTC 
+                                                            high counter
+  451 0000033A 6808            ldr              r0,[r1]
+  452 0000033C EA4F 4000       lsl              r0, #16     ; Shift the high co
+                                                            unter value left by
+                                                             16 bits 
+  453 00000340 684A            ldr              r2,[r1,#4]  ; Reading the RTC l
+                                                            ow counter value
+  454 00000342 EA40 0002       orr              r0,r2       ; Combine the high 
+                                                            counter value and l
+                                                            ow counter value us
+                                                            ing OR logic
+  455 00000346 4770            bx               lr          ; Exit the subrouti
+                                                            ne 
+  456 00000348                 endp
+  457 00000348         
+  458 00000348         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  459 00000348         ; Random_LED subroutine turns on one of the four red LED
+                       s randomly. 
+  460 00000348         ; I used an algorithm found online called Linear Congrue
+                       ntial Generator that generates  
+  461 00000348         ; psudorandom numbers using a simple method.
+  462 00000348         ;_______________________________________________________
+                       ____________________________________
+  463 00000348         ; ------  https://en.wikipedia.org/wiki/Linear_congruent
+                       ial_generator  ---------------------
+  464 00000348         ;-------------------------------------------------------
+                       -------------------------------------
+  465 00000348         ; The generator is defined by recurrence relation:
+  466 00000348         ;    X(n + 1) = ( a*X(n) + c )  mod  m
+  467 00000348         ;  where X is the sequence of pseudorandom values, and
+  468 00000348         ;    m , 0 < m — the "modulus"
+  469 00000348         ;    a , 0 < a < m — the "multiplier"
+  470 00000348         ;    c , 0 = c < m — the "increment"
+  471 00000348         ;    X0, 0 = X0 < m — the "seed" or "start value"
+  472 00000348         ; As the seed(X0), I used the RTC counter value as the i
+                       nput. I figured this would provide a fairly 
+  473 00000348         ; random and unpredictable input.
+  474 00000348         ; For modulous I chose m = 134456, a = 1664525, c = 1013
+                       904223. These were one of the recommended values on the
+  475 00000348         ; wikipedia page. I chose to iterate the relation 9 time
+                       s.
+  476 00000348                 ALIGN
+  477 00000348         Random_LED
+                               PROC
+
+
+
+ARM Macro Assembler    Page 18 
+
+
+  478 00000348 B500            push             {lr}
+  479 0000034A F7FF FFFE       bl               GetRTCCountVal ; Get the curren
+                                                            t RTC counter value
+                                                             for initial seed i
+                                                            nput
+  480 0000034E 4C56            ldr              r4,=1013904223 ; Selecting R4 a
+                                                            s the "c" value
+  481 00000350 F04F 0509       mov              r5,#9       ; Iteration counter
+                                                            
+  482 00000354 4E55            ldr              r6,=1664525 ; Selecting R6 as t
+                                                            he "a" value  
+  483 00000356         randloop                             ; Entering loop tha
+                                                            t will iterate 9 ti
+                                                            mes over the relati
+                                                            on
+  484 00000356 F1A5 0501       sub              r5, #1      ; Decrement the ite
+                                                            ration counter
+  485 0000035A FB00 4006       mla              r0, r0, r6,r4 ; r0 = r0(seed) *
+                                                             r6(multiplier) + r
+                                                            4(increment)     
+  486 0000035E 2D00            cmp              r5, #0      ; Check if the iter
+                                                            ation counter has r
+                                                            eached 0
+  487 00000360 D1F9            bne              randloop    ; If not equal to z
+                                                            ero, countinue loop
+                                                            ing    
+  488 00000362 F000 0003       and              r0, #3      ; Doing a modulous 
+                                                            of r0 mod 4, to get
+                                                             a value somewhere 
+                                                            between 0 to 3
+  489 00000366         ;Encoding the randomly generated value of 0 to 3, to the
+                        corresponding LED data register ouput
+  490 00000366 2800            cmp              r0, #0      ; If its 0, then tu
+                                                            rn on 1st LED
+  491 00000368 BF08 F44F 
+              5AE0             moveq            r10, #0x1c00
+  492 0000036E 2801            cmp              r0, #1      ; If its 1, then tu
+                                                            rn on 2nd LED
+  493 00000370 BF08 F44F 
+              5AD0             moveq            r10, #0x1a00
+  494 00000376 2802            cmp              r0, #2      ; If its 2, then tu
+                                                            rn on 3rd LED
+  495 00000378 BF08 F44F 
+              5AB0             moveq            r10, #0x1600
+  496 0000037E 2803            cmp              r0, #3      ; If its 3, then tu
+                                                            rn on 4th LED
+  497 00000380 BF08 F44F 
+              6A60             moveq            r10, #0xe00
+  498 00000386         
+  499 00000386 4652            mov              r2, r10     ; Writing randomly 
+                                                            generated encoded v
+                                                            alue to LED registe
+                                                            rs
+  500 00000388 F7FF FFFE       bl               TurnOnLED
+  501 0000038C F85D EB04       pop{lr}
+  502 00000390 4770            BX               LR
+  503 00000392                 ENDP
+  504 00000392         
+  505 00000392         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+ARM Macro Assembler    Page 19 
+
+
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  506 00000392         ; TurnOnLED simply takes R2 as the encoded input and oup
+                       uts that to 
+  507 00000392         ; the ouput data ragisters for the LEDs
+  508 00000392 00 00           align
+  509 00000394         TurnOnLED
+                               proc
+  510 00000394 4946            ldr              r1,=GPIOA_ODR ; Writing to the 
+                                                            output data registe
+                                                            r on port A   
+  511 00000396 600A            str              r2,[r1]     ; Store the input v
+                                                            alue to the registe
+                                                            r memory location
+  512 00000398 4770            bx               lr          ; exit subroutine
+  513 0000039A                 endp
+  514 0000039A         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  515 0000039A         ; LED_OFF simply turns off all the LEDs on the board.
+  516 0000039A 00 00           align
+  517 0000039C         LED_OFF proc
+  518 0000039C F44F 50F0       mov              r0, #0x1e00 ; LEDs are active l
+                                                            ow and require 0x1e
+                                                            00 to turn off
+  519 000003A0 4943            ldr              r1,=GPIOA_ODR ; loading the mem
+                                                            ory location of dat
+                                                            a register for LEDs
+                                                            
+  520 000003A2 6008            str              r0,[r1]     ; Store the encoded
+                                                             value to memory lo
+                                                            cation
+  521 000003A4 4770            bx               lr          ; exit subroutine
+  522 000003A6                 endp
+  523 000003A6         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  524 000003A6         ; Delay is a general purpose delay sub routine that take
+                       s R0 as the the input register and
+  525 000003A6         ; provides a delay of that amount in approx. millisecond
+                       s. To be precise 1024 input is equal to
+  526 000003A6         ; one second. 512 input is equal to 500 ms.
+  527 000003A6 00 00           ALIGN
+  528 000003A8         Delay   PROC
+  529 000003A8 B500            push{lr}
+  530 000003AA F7FF FFFE       bl               GetRTCCountVal ; Read the RTC c
+                                                            ount value    
+  531 000003AE 4403            add              r3, r0, r3  ; Add the delay amo
+                                                            unt to the counter
+  532 000003B0         loop_delay2
+  533 000003B0 F7FF FFFE       bl               GetRTCCountVal ; Get the curren
+                                                            t count value
+  534 000003B4 4298            cmp              r0, r3      ; check if it has r
+                                                            eached that added d
+                                                            elay amount
+  535 000003B6 D3FB            blo              loop_delay2 ; If the current co
+                                                            unt is less, then c
+                                                            ontinue looping
+  536 000003B8 F85D EB04       pop              {lr}
+  537 000003BC         
+  538 000003BC 4770            BX               LR          ; Exiting subroutin
+                                                            e
+
+
+
+ARM Macro Assembler    Page 20 
+
+
+  539 000003BE                 ENDP
+  540 000003BE         
+  541 000003BE         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  542 000003BE         ;This routine will enable the clock for the Ports requir
+                       ed
+  543 000003BE 00 00           ALIGN
+  544 000003C0         GPIO_ClockInit
+                               PROC
+  545 000003C0         ; ENEL 384 Pushbuttons: SW2(Red): PB8, SW3(Black): PB9, 
+                       SW4(Blue): PC12 *****NEW for 2015**** SW5(Green): PA5
+  546 000003C0         ; ENEL 384 board LEDs: D1 - PA9, D2 - PA10, D3 - PA11, D
+                       4 - PA12
+  547 000003C0 493C            ldr              r1,=RCC_APB2ENR
+  548 000003C2 6808            ldr              r0,[r1]
+  549 000003C4 F040 001C       orr              r0,#0x1c
+  550 000003C8 6008            str              r0,[r1]
+  551 000003CA 4770            BX               LR
+  552 000003CC                 ENDP
+  553 000003CC         
+  554 000003CC         
+  555 000003CC         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+  556 000003CC         ; This routine enables the GPIO for the LED's.  By defau
+                       lt the I/O lines are input so we only need to configure 
+                       for ouptut.
+  557 000003CC         ; Using general pupose output push-pull configuration wi
+                       th output max speed 50 MHz
+  558 000003CC                 ALIGN
+  559 000003CC         GPIO_init
+                               PROC
+  560 000003CC         ; ENEL 384 board LEDs: D1 - PA9, D2 - PA10, D3 - PA11, D
+                       4 - PA12
+  561 000003CC 493A            ldr              r1,=GPIOA_CRH ;------> For LEDs
+                                                             on the STM32 desco
+                                                            very board 
+  562 000003CE 6808            ldr              r0,[r1]
+  563 000003D0 4D3A            ldr              r5,=0x33330
+  564 000003D2 EA40 0005       orr              r0, r5
+  565 000003D6 4D3A            ldr              r5,=0xcccc0
+  566 000003D8 EA6F 0205       mvn              r2, r5
+  567 000003DC EA00 0002       and              r0,r2
+  568 000003E0 6008            str              r0,[r1]
+  569 000003E2 4938            ldr              r1,=GPIOC_CRH ;------> For the 
+                                                            LEDs on the PCB 
+  570 000003E4 6808            ldr              r0,[r1]
+  571 000003E6 F040 0033       orr              r0, #0x33
+  572 000003EA F06F 02CC       mvn              r2, #0xcc
+  573 000003EE EA00 0002       and              r0,r2
+  574 000003F2 6008            str              r0,[r1]
+  575 000003F4 4770            BX               LR
+  576 000003F6                 ENDP
+  577 000003F6         
+  578 000003F6         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  579 000003F6         ; Initializing Real Time Clock (RTC) counter
+  580 000003F6         ; To active the RTC, we first have to enable the RCC clo
+                       ck for power interfaces, backup interfaces.
+  581 000003F6         ; Using the power interface, we use the power control re
+
+
+
+ARM Macro Assembler    Page 21 
+
+
+                       gister to get RTC write access.
+  582 000003F6         ; Then we use the backup domain register in RCC to enabl
+                       e the LSE oscillator clock for the RTC.
+  583 000003F6         ; Once we have acess to RTC, we use the RTC peripheral r
+                       egisters to read or write to it. 
+  584 000003F6         ; For RTC write operations, we have to enter configurati
+                       on mode using the configuration flag
+  585 000003F6         ; bit. After entering configuration mode, I prescaled th
+                       e clock frequency of 32.768KHz
+  586 000003F6         ; down to 1024 Hz using the RTC prescaler load register.
+                        Now we are done with configuration 
+  587 000003F6         ; mode so we exit the configuration mode and wait for RT
+                       C operation OFF bit in control register
+  588 000003F6         ; to be set to '1' meaning "Last write on RTC regsiters 
+                       terminated". Our RTC counter register 
+  589 000003F6         ; now starts counting based on the prescaled frequency. 
+                       RTC has been fully configured
+  590 000003F6 00 00           ALIGN
+  591 000003F8         RTC_init
+                               PROC
+  592 000003F8         
+  593 000003F8 4933            ldr              r1,=RCC_APB1ENR ; Activate the 
+                                                            clock for power int
+                                                            erface and backup i
+                                                            nterface
+  594 000003FA 6808            ldr              r0,[r1]
+  595 000003FC F04F 52C0       ldr              r2,=0x18000000
+  596 00000400 EA40 0002       orr              r0,r2
+  597 00000404 6008            str              r0,[r1]
+  598 00000406         
+  599 00000406 4931            ldr              r1,=PWR_CR  ; Using the power c
+                                                            ontrol register to 
+                                                            get RTC write acces
+                                                            s
+  600 00000408 6808            ldr              r0,[r1]
+  601 0000040A F440 7080       orr              r0,#0x100
+  602 0000040E 6008            str              r0,[r1]
+  603 00000410         
+  604 00000410 492F            ldr              r1,=RCC_BDCR ; Use backup domai
+                                                            n register to enabl
+                                                            e RTC clock and use
+                                                             LSE oscillator as 
+                                                            the clock
+  605 00000412 6808            ldr              r0,[r1]
+  606 00000414 F248 1201       ldr              r2,=0x8101
+  607 00000418 EA40 0002       orr              r0,r2
+  608 0000041C 6008            str              r0,[r1]
+  609 0000041E         
+  610 0000041E 492D            ldr              r1,=RTC_CRL ; Using the control
+                                                             register for the R
+                                                            TC
+  611 00000420         CRL_Loop
+  612 00000420 6808            ldr              r0,[r1]     ; Reading the RTC o
+                                                            peration OFF bit an
+                                                            d checking to see i
+                                                            f last write operat
+                                                            ion has been.. 
+  613 00000422 F000 0020       and              r0, #0x20   ; ..terminated
+  614 00000426 2820            cmp              r0, #0x20
+
+
+
+ARM Macro Assembler    Page 22 
+
+
+  615 00000428 D1FA            bne              CRL_Loop
+  616 0000042A         
+  617 0000042A 492A            ldr              r1,=RTC_CRL ; Writing to the co
+                                                            nfiguration flag, t
+                                                            o enter configurati
+                                                            on mode
+  618 0000042C 6808            ldr              r0,[r1]
+  619 0000042E F040 0010       orr              r0,#0x10
+  620 00000432 6008            str              r0,[r1]
+  621 00000434         
+  622 00000434 4928            ldr              r1,=RTC_PRLL ; Writing to RTC p
+                                                            rescaler load regis
+                                                            ter. I set the pres
+                                                            caler to 31.
+  623 00000436 6808            ldr              r0,[r1]     ; it uses the formu
+                                                            la f(TR_CLK) = 32.7
+                                                            68 kHz/(prll_val +1
+                                                            ) which gives us a 
+                                                            frequency of 1024Hz
+                                                            .
+  624 00000438 F04F 001F       mov              r0,#31
+  625 0000043C 6008            str              r0,[r1]
+  626 0000043E         
+  627 0000043E 4925            ldr              r1,=RTC_CRL ; Exiting configura
+                                                            tion mode
+  628 00000440 6808            ldr              r0,[r1]
+  629 00000442 F06F 0210       mvn              r2,#0x10
+  630 00000446 EA00 0002       and              r0,r2
+  631 0000044A 6008            str              r0,[r1]
+  632 0000044C         
+  633 0000044C 4921            ldr              r1,=RTC_CRL
+  634 0000044E         CRL_Loop2                            ; Wating for the la
+                                                            st write operation 
+                                                            to get terminiated 
+                                                            
+  635 0000044E 6808            ldr              r0,[r1]
+  636 00000450 F000 0020       and              r0, #0x20
+  637 00000454 2820            cmp              r0, #0x20
+  638 00000456 D1FA            bne              CRL_Loop2
+  639 00000458         
+  640 00000458 4770            BX               LR
+  641 0000045A                 ENDP
+  642 0000045A         
+  643 0000045A         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  644 0000045A         ; This subroutine changes the order of 4 bits. This was 
+                       used because when displaying the score
+  645 0000045A         ; on the PCB LEDs, we want our most significant bit to b
+                       e first LED and fourth LED to be least
+  646 0000045A         ; significant. To do that, we have to flip the order of 
+                       the bits. I hard coded the logic.
+  647 0000045A         ; ex: 1010 => 0101,    1110 => 0111,     0100 => 0010
+  648 0000045A         ; Input is r9, ouput is r9
+  649 0000045A 00 00           align
+  650 0000045C         ChangeOrderOfBits
+                               proc
+  651 0000045C F04F 0000       mov              r0,#0
+  652 00000460 F009 0101       and              r1,r9,#1    ;Get the first bit
+  653 00000464 EA4F 01C1       lsl              r1,#3       ;shift it left by 3
+
+
+
+ARM Macro Assembler    Page 23 
+
+
+                                                            
+  654 00000468 EA40 0001       orr              r0,r1
+  655 0000046C F009 0102       and              r1,r9,#2    ;Get the second bit
+                                                            
+  656 00000470 EA4F 0141       lsl              r1,#1       ;Shift it left by 1
+                                                            
+  657 00000474 EA40 0001       orr              r0,r1
+  658 00000478 F009 0104       and              r1,r9,#4    ;Get the thrid bit
+  659 0000047C EA4F 0151       lsr              r1,#1       ;Shift it right by 
+                                                            1
+  660 00000480 EA40 0001       orr              r0,r1
+  661 00000484 F009 0108       and              r1,r9,#8    ;Get the fourth bit
+                                                            
+  662 00000488 EA4F 01D1       lsr              r1,#3       ;Shift it right by 
+                                                            3 
+  663 0000048C EA40 0001       orr              r0,r1
+  664 00000490 4681            mov              r9, r0
+  665 00000492 4770            bx               lr
+  666 00000494                 endp
+  667 00000494         
+  668 00000494                 ALIGN
+  669 00000494                 END
+              4001100C 
+              40010C08 
+              40011008 
+              40010808 
+              40002818 
+              3C6EF35F 
+              0019660D 
+              4001080C 
+              40021018 
+              40010804 
+              00033330 
+              000CCCC0 
+              40011004 
+              4002101C 
+              40007000 
+              40021020 
+              40002804 
+              4000280C 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
+ork --depend=.\objects\game.d -o.\objects\game.o -I.\RTE\_Target_1 -IC:\Keil_v5
+\ARM\PACK\Keil\STM32F1xx_DFP\2.3.0\Device\Include -IC:\Keil_v5\ARM\CMSIS\Includ
+e --predefine="__EVAL SETA 1" --predefine="__UVISION_VERSION SETA 526" --predef
+ine="STM32F10X_MD_VL SETA 1" --list=.\listings\game.lst Game.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+RESET 00000000
+
+Symbol: RESET
+   Definitions
+      At line 79 in file Game.s
+   Uses
+      None
+Comment: RESET unused
+__Vectors 00000000
+
+Symbol: __Vectors
+   Definitions
+      At line 82 in file Game.s
+   Uses
+      At line 80 in file Game.s
+Comment: __Vectors used once
+2 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+ButtonPressed2 00000224
+
+Symbol: ButtonPressed2
+   Definitions
+      At line 314 in file Game.s
+   Uses
+      At line 301 in file Game.s
+      At line 307 in file Game.s
+
+ButtonPressed3 00000286
+
+Symbol: ButtonPressed3
+   Definitions
+      At line 353 in file Game.s
+   Uses
+      At line 339 in file Game.s
+Comment: ButtonPressed3 used once
+ButtonPressed4 000002DE
+
+Symbol: ButtonPressed4
+   Definitions
+      At line 396 in file Game.s
+   Uses
+      At line 381 in file Game.s
+Comment: ButtonPressed4 used once
+CRL_Loop 00000420
+
+Symbol: CRL_Loop
+   Definitions
+      At line 611 in file Game.s
+   Uses
+      At line 615 in file Game.s
+Comment: CRL_Loop used once
+CRL_Loop2 0000044E
+
+Symbol: CRL_Loop2
+   Definitions
+      At line 634 in file Game.s
+   Uses
+      At line 638 in file Game.s
+Comment: CRL_Loop2 used once
+ChangeOrderOfBits 0000045C
+
+Symbol: ChangeOrderOfBits
+   Definitions
+      At line 650 in file Game.s
+   Uses
+      At line 289 in file Game.s
+Comment: ChangeOrderOfBits used once
+Delay 000003A8
+
+Symbol: Delay
+   Definitions
+      At line 528 in file Game.s
+   Uses
+      At line 121 in file Game.s
+      At line 129 in file Game.s
+      At line 137 in file Game.s
+      At line 145 in file Game.s
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Relocatable symbols
+
+      At line 153 in file Game.s
+      At line 161 in file Game.s
+      At line 165 in file Game.s
+      At line 174 in file Game.s
+      At line 191 in file Game.s
+      At line 206 in file Game.s
+      At line 258 in file Game.s
+      At line 265 in file Game.s
+      At line 284 in file Game.s
+      At line 303 in file Game.s
+      At line 309 in file Game.s
+      At line 341 in file Game.s
+      At line 349 in file Game.s
+      At line 383 in file Game.s
+      At line 392 in file Game.s
+
+ExitingState 000001A8
+
+Symbol: ExitingState
+   Definitions
+      At line 269 in file Game.s
+   Uses
+      At line 256 in file Game.s
+      At line 263 in file Game.s
+
+GPIO_ClockInit 000003C0
+
+Symbol: GPIO_ClockInit
+   Definitions
+      At line 544 in file Game.s
+   Uses
+      At line 91 in file Game.s
+Comment: GPIO_ClockInit used once
+GPIO_init 000003CC
+
+Symbol: GPIO_init
+   Definitions
+      At line 559 in file Game.s
+   Uses
+      At line 92 in file Game.s
+Comment: GPIO_init used once
+GameLost 000001B8
+
+Symbol: GameLost
+   Definitions
+      At line 280 in file Game.s
+   Uses
+      At line 229 in file Game.s
+      At line 234 in file Game.s
+
+GameWon 00000160
+
+Symbol: GameWon
+   Definitions
+      At line 246 in file Game.s
+   Uses
+      At line 207 in file Game.s
+Comment: GameWon used once
+GetRTCCountVal 00000338
+
+
+
+ARM Macro Assembler    Page 3 Alphabetic symbol ordering
+Relocatable symbols
+
+
+Symbol: GetRTCCountVal
+   Definitions
+      At line 449 in file Game.s
+   Uses
+      At line 220 in file Game.s
+      At line 231 in file Game.s
+      At line 249 in file Game.s
+      At line 266 in file Game.s
+      At line 294 in file Game.s
+      At line 310 in file Game.s
+      At line 329 in file Game.s
+      At line 350 in file Game.s
+      At line 372 in file Game.s
+      At line 393 in file Game.s
+      At line 479 in file Game.s
+      At line 530 in file Game.s
+      At line 533 in file Game.s
+
+GetState 0000012C
+
+Symbol: GetState
+   Definitions
+      At line 218 in file Game.s
+   Uses
+      At line 193 in file Game.s
+Comment: GetState used once
+Get_Buttons 00000308
+
+Symbol: Get_Buttons
+   Definitions
+      At line 427 in file Game.s
+   Uses
+      At line 125 in file Game.s
+      At line 133 in file Game.s
+      At line 141 in file Game.s
+      At line 149 in file Game.s
+      At line 157 in file Game.s
+      At line 167 in file Game.s
+      At line 223 in file Game.s
+      At line 254 in file Game.s
+      At line 261 in file Game.s
+      At line 299 in file Game.s
+      At line 305 in file Game.s
+      At line 337 in file Game.s
+      At line 379 in file Game.s
+      At line 415 in file Game.s
+
+LED_Blink1 0000029C
+
+Symbol: LED_Blink1
+   Definitions
+      At line 370 in file Game.s
+   Uses
+      At line 286 in file Game.s
+Comment: LED_Blink1 used once
+LED_Blink2 00000238
+
+Symbol: LED_Blink2
+
+
+
+ARM Macro Assembler    Page 4 Alphabetic symbol ordering
+Relocatable symbols
+
+   Definitions
+      At line 326 in file Game.s
+   Uses
+      At line 288 in file Game.s
+Comment: LED_Blink2 used once
+LED_OFF 0000039C
+
+Symbol: LED_OFF
+   Definitions
+      At line 517 in file Game.s
+   Uses
+      At line 93 in file Game.s
+      At line 119 in file Game.s
+      At line 163 in file Game.s
+      At line 171 in file Game.s
+      At line 194 in file Game.s
+      At line 204 in file Game.s
+      At line 236 in file Game.s
+      At line 270 in file Game.s
+      At line 281 in file Game.s
+      At line 304 in file Game.s
+      At line 315 in file Game.s
+      At line 342 in file Game.s
+
+MYCODE 00000000
+
+Symbol: MYCODE
+   Definitions
+      At line 85 in file Game.s
+   Uses
+      None
+Comment: MYCODE unused
+MinimumTimeReached 00000108
+
+Symbol: MinimumTimeReached
+   Definitions
+      At line 199 in file Game.s
+   Uses
+      At line 197 in file Game.s
+Comment: MinimumTimeReached used once
+PlayGame 000000E4
+
+Symbol: PlayGame
+   Definitions
+      At line 188 in file Game.s
+   Uses
+      At line 101 in file Game.s
+      At line 202 in file Game.s
+
+RTC_init 000003F8
+
+Symbol: RTC_init
+   Definitions
+      At line 591 in file Game.s
+   Uses
+      At line 94 in file Game.s
+Comment: RTC_init used once
+Random_LED 00000348
+
+
+
+
+ARM Macro Assembler    Page 5 Alphabetic symbol ordering
+Relocatable symbols
+
+Symbol: Random_LED
+   Definitions
+      At line 477 in file Game.s
+   Uses
+      At line 192 in file Game.s
+Comment: Random_LED used once
+Reset_Handler 00000000
+
+Symbol: Reset_Handler
+   Definitions
+      At line 89 in file Game.s
+   Uses
+      At line 83 in file Game.s
+      At line 86 in file Game.s
+
+TurnOnLED 00000394
+
+Symbol: TurnOnLED
+   Definitions
+      At line 509 in file Game.s
+   Uses
+      At line 124 in file Game.s
+      At line 132 in file Game.s
+      At line 140 in file Game.s
+      At line 148 in file Game.s
+      At line 156 in file Game.s
+      At line 253 in file Game.s
+      At line 260 in file Game.s
+      At line 298 in file Game.s
+      At line 336 in file Game.s
+      At line 500 in file Game.s
+
+WaitForButtonRelease 000002F4
+
+Symbol: WaitForButtonRelease
+   Definitions
+      At line 413 in file Game.s
+   Uses
+      At line 172 in file Game.s
+      At line 271 in file Game.s
+      At line 282 in file Game.s
+      At line 316 in file Game.s
+      At line 357 in file Game.s
+      At line 400 in file Game.s
+      At line 418 in file Game.s
+
+Wait_loop 0000002A
+
+Symbol: Wait_loop
+   Definitions
+      At line 118 in file Game.s
+   Uses
+      At line 169 in file Game.s
+Comment: Wait_loop used once
+WaitingForPlayer 00000028
+
+Symbol: WaitingForPlayer
+   Definitions
+      At line 116 in file Game.s
+
+
+
+ARM Macro Assembler    Page 6 Alphabetic symbol ordering
+Relocatable symbols
+
+   Uses
+      At line 100 in file Game.s
+Comment: WaitingForPlayer used once
+WinningSignal_loop 0000016C
+
+Symbol: WinningSignal_loop
+   Definitions
+      At line 251 in file Game.s
+   Uses
+      At line 268 in file Game.s
+Comment: WinningSignal_loop used once
+buttonPressed 000000CE
+
+Symbol: buttonPressed
+   Definitions
+      At line 170 in file Game.s
+   Uses
+      At line 127 in file Game.s
+      At line 135 in file Game.s
+      At line 143 in file Game.s
+      At line 151 in file Game.s
+      At line 159 in file Game.s
+
+continue 0000014C
+
+Symbol: continue
+   Definitions
+      At line 230 in file Game.s
+   Uses
+      At line 228 in file Game.s
+Comment: continue used once
+loop_delay 00000136
+
+Symbol: loop_delay
+   Definitions
+      At line 222 in file Game.s
+   Uses
+      At line 233 in file Game.s
+Comment: loop_delay used once
+loop_delay2 000003B0
+
+Symbol: loop_delay2
+   Definitions
+      At line 532 in file Game.s
+   Uses
+      At line 535 in file Game.s
+Comment: loop_delay2 used once
+losingSignal_loop 000001EE
+
+Symbol: losingSignal_loop
+   Definitions
+      At line 296 in file Game.s
+   Uses
+      At line 312 in file Game.s
+Comment: losingSignal_loop used once
+losingSignal_loop2 000002A6
+
+Symbol: losingSignal_loop2
+   Definitions
+
+
+
+ARM Macro Assembler    Page 7 Alphabetic symbol ordering
+Relocatable symbols
+
+      At line 374 in file Game.s
+   Uses
+      At line 395 in file Game.s
+Comment: losingSignal_loop2 used once
+losingSignal_loop3 00000242
+
+Symbol: losingSignal_loop3
+   Definitions
+      At line 331 in file Game.s
+   Uses
+      At line 352 in file Game.s
+Comment: losingSignal_loop3 used once
+mainLoop 00000010
+
+Symbol: mainLoop
+   Definitions
+      At line 96 in file Game.s
+   Uses
+      At line 102 in file Game.s
+Comment: mainLoop used once
+next 00000156
+
+Symbol: next
+   Definitions
+      At line 235 in file Game.s
+   Uses
+      At line 226 in file Game.s
+Comment: next used once
+randloop 00000356
+
+Symbol: randloop
+   Definitions
+      At line 483 in file Game.s
+   Uses
+      At line 487 in file Game.s
+Comment: randloop used once
+39 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Absolute symbols
+
+DELAYTIME 00186A00
+
+Symbol: DELAYTIME
+   Definitions
+      At line 75 in file Game.s
+   Uses
+      None
+Comment: DELAYTIME unused
+GPIOA_BRR 40010814
+
+Symbol: GPIOA_BRR
+   Definitions
+      At line 31 in file Game.s
+   Uses
+      None
+Comment: GPIOA_BRR unused
+GPIOA_BSRR 40010810
+
+Symbol: GPIOA_BSRR
+   Definitions
+      At line 30 in file Game.s
+   Uses
+      None
+Comment: GPIOA_BSRR unused
+GPIOA_CRH 40010804
+
+Symbol: GPIOA_CRH
+   Definitions
+      At line 27 in file Game.s
+   Uses
+      At line 561 in file Game.s
+Comment: GPIOA_CRH used once
+GPIOA_CRL 40010800
+
+Symbol: GPIOA_CRL
+   Definitions
+      At line 26 in file Game.s
+   Uses
+      None
+Comment: GPIOA_CRL unused
+GPIOA_IDR 40010808
+
+Symbol: GPIOA_IDR
+   Definitions
+      At line 28 in file Game.s
+   Uses
+      At line 437 in file Game.s
+Comment: GPIOA_IDR used once
+GPIOA_LCKR 40010818
+
+Symbol: GPIOA_LCKR
+   Definitions
+      At line 32 in file Game.s
+   Uses
+      None
+Comment: GPIOA_LCKR unused
+GPIOA_ODR 4001080C
+
+Symbol: GPIOA_ODR
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Absolute symbols
+
+   Definitions
+      At line 29 in file Game.s
+   Uses
+      At line 510 in file Game.s
+      At line 519 in file Game.s
+
+GPIOB_BRR 40010C14
+
+Symbol: GPIOB_BRR
+   Definitions
+      At line 40 in file Game.s
+   Uses
+      None
+Comment: GPIOB_BRR unused
+GPIOB_BSRR 40010C10
+
+Symbol: GPIOB_BSRR
+   Definitions
+      At line 39 in file Game.s
+   Uses
+      None
+Comment: GPIOB_BSRR unused
+GPIOB_CRH 40010C04
+
+Symbol: GPIOB_CRH
+   Definitions
+      At line 36 in file Game.s
+   Uses
+      None
+Comment: GPIOB_CRH unused
+GPIOB_CRL 40010C00
+
+Symbol: GPIOB_CRL
+   Definitions
+      At line 35 in file Game.s
+   Uses
+      None
+Comment: GPIOB_CRL unused
+GPIOB_IDR 40010C08
+
+Symbol: GPIOB_IDR
+   Definitions
+      At line 37 in file Game.s
+   Uses
+      At line 428 in file Game.s
+Comment: GPIOB_IDR used once
+GPIOB_LCKR 40010C18
+
+Symbol: GPIOB_LCKR
+   Definitions
+      At line 41 in file Game.s
+   Uses
+      None
+Comment: GPIOB_LCKR unused
+GPIOB_ODR 40010C0C
+
+Symbol: GPIOB_ODR
+   Definitions
+      At line 38 in file Game.s
+
+
+
+ARM Macro Assembler    Page 3 Alphabetic symbol ordering
+Absolute symbols
+
+   Uses
+      None
+Comment: GPIOB_ODR unused
+GPIOC_BRR 40011014
+
+Symbol: GPIOC_BRR
+   Definitions
+      At line 50 in file Game.s
+   Uses
+      None
+Comment: GPIOC_BRR unused
+GPIOC_BSRR 40011010
+
+Symbol: GPIOC_BSRR
+   Definitions
+      At line 49 in file Game.s
+   Uses
+      None
+Comment: GPIOC_BSRR unused
+GPIOC_CRH 40011004
+
+Symbol: GPIOC_CRH
+   Definitions
+      At line 46 in file Game.s
+   Uses
+      At line 569 in file Game.s
+Comment: GPIOC_CRH used once
+GPIOC_CRL 40011000
+
+Symbol: GPIOC_CRL
+   Definitions
+      At line 45 in file Game.s
+   Uses
+      None
+Comment: GPIOC_CRL unused
+GPIOC_IDR 40011008
+
+Symbol: GPIOC_IDR
+   Definitions
+      At line 47 in file Game.s
+   Uses
+      At line 432 in file Game.s
+Comment: GPIOC_IDR used once
+GPIOC_LCKR 40011018
+
+Symbol: GPIOC_LCKR
+   Definitions
+      At line 51 in file Game.s
+   Uses
+      None
+Comment: GPIOC_LCKR unused
+GPIOC_ODR 4001100C
+
+Symbol: GPIOC_ODR
+   Definitions
+      At line 48 in file Game.s
+   Uses
+      At line 332 in file Game.s
+      At line 343 in file Game.s
+
+
+
+ARM Macro Assembler    Page 4 Alphabetic symbol ordering
+Absolute symbols
+
+      At line 354 in file Game.s
+      At line 375 in file Game.s
+      At line 385 in file Game.s
+      At line 397 in file Game.s
+
+INITIAL_MSP 20001000
+
+Symbol: INITIAL_MSP
+   Definitions
+      At line 23 in file Game.s
+   Uses
+      At line 82 in file Game.s
+Comment: INITIAL_MSP used once
+LosingSignalTime 0001E000
+
+Symbol: LosingSignalTime
+   Definitions
+      At line 17 in file Game.s
+   Uses
+      At line 293 in file Game.s
+      At line 328 in file Game.s
+      At line 371 in file Game.s
+
+NumCycles 00000010
+
+Symbol: NumCycles
+   Definitions
+      At line 21 in file Game.s
+   Uses
+      At line 97 in file Game.s
+Comment: NumCycles used once
+PWR_CR 40007000
+
+Symbol: PWR_CR
+   Definitions
+      At line 71 in file Game.s
+   Uses
+      At line 599 in file Game.s
+Comment: PWR_CR used once
+PrelimWaitTime 0000012C
+
+Symbol: PrelimWaitTime
+   Definitions
+      At line 19 in file Game.s
+   Uses
+      At line 190 in file Game.s
+Comment: PrelimWaitTime used once
+RCC_AHBENR 40021014
+
+Symbol: RCC_AHBENR
+   Definitions
+      At line 60 in file Game.s
+   Uses
+      None
+Comment: RCC_AHBENR unused
+RCC_APB1ENR 4002101C
+
+Symbol: RCC_APB1ENR
+   Definitions
+
+
+
+ARM Macro Assembler    Page 5 Alphabetic symbol ordering
+Absolute symbols
+
+      At line 62 in file Game.s
+   Uses
+      At line 593 in file Game.s
+Comment: RCC_APB1ENR used once
+RCC_APB1RSTR 40021010
+
+Symbol: RCC_APB1RSTR
+   Definitions
+      At line 59 in file Game.s
+   Uses
+      None
+Comment: RCC_APB1RSTR unused
+RCC_APB2ENR 40021018
+
+Symbol: RCC_APB2ENR
+   Definitions
+      At line 61 in file Game.s
+   Uses
+      At line 547 in file Game.s
+Comment: RCC_APB2ENR used once
+RCC_APB2RSTR 4002100C
+
+Symbol: RCC_APB2RSTR
+   Definitions
+      At line 58 in file Game.s
+   Uses
+      None
+Comment: RCC_APB2RSTR unused
+RCC_BDCR 40021020
+
+Symbol: RCC_BDCR
+   Definitions
+      At line 63 in file Game.s
+   Uses
+      At line 604 in file Game.s
+Comment: RCC_BDCR used once
+RCC_CFGR 40021004
+
+Symbol: RCC_CFGR
+   Definitions
+      At line 56 in file Game.s
+   Uses
+      None
+Comment: RCC_CFGR unused
+RCC_CFGR2 4002102C
+
+Symbol: RCC_CFGR2
+   Definitions
+      At line 65 in file Game.s
+   Uses
+      None
+Comment: RCC_CFGR2 unused
+RCC_CIR 40021008
+
+Symbol: RCC_CIR
+   Definitions
+      At line 57 in file Game.s
+   Uses
+      None
+
+
+
+ARM Macro Assembler    Page 6 Alphabetic symbol ordering
+Absolute symbols
+
+Comment: RCC_CIR unused
+RCC_CR 40021000
+
+Symbol: RCC_CR
+   Definitions
+      At line 55 in file Game.s
+   Uses
+      None
+Comment: RCC_CR unused
+RCC_CSR 40021024
+
+Symbol: RCC_CSR
+   Definitions
+      At line 64 in file Game.s
+   Uses
+      None
+Comment: RCC_CSR unused
+RTC_CNTH 40002818
+
+Symbol: RTC_CNTH
+   Definitions
+      At line 69 in file Game.s
+   Uses
+      At line 450 in file Game.s
+Comment: RTC_CNTH used once
+RTC_CNTL 4000281C
+
+Symbol: RTC_CNTL
+   Definitions
+      At line 70 in file Game.s
+   Uses
+      None
+Comment: RTC_CNTL unused
+RTC_CRL 40002804
+
+Symbol: RTC_CRL
+   Definitions
+      At line 67 in file Game.s
+   Uses
+      At line 610 in file Game.s
+      At line 617 in file Game.s
+      At line 627 in file Game.s
+      At line 633 in file Game.s
+
+RTC_PRLL 4000280C
+
+Symbol: RTC_PRLL
+   Definitions
+      At line 68 in file Game.s
+   Uses
+      At line 622 in file Game.s
+Comment: RTC_PRLL used once
+ReactTime 00000800
+
+Symbol: ReactTime
+   Definitions
+      At line 20 in file Game.s
+   Uses
+      At line 98 in file Game.s
+
+
+
+ARM Macro Assembler    Page 7 Alphabetic symbol ordering
+Absolute symbols
+
+Comment: ReactTime used once
+WinningSignalTime 0001E000
+
+Symbol: WinningSignalTime
+   Definitions
+      At line 18 in file Game.s
+   Uses
+      At line 248 in file Game.s
+Comment: WinningSignalTime used once
+44 symbols
+420 symbols in table
