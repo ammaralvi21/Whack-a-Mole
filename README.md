@@ -1,5 +1,6 @@
 # Whack-a-Mole
 Whack a Mole game developed using ARM assembly language on the Cortex-M3 architecture. It demonstrates low-level representation and manipulation of data.
+![me](https://github.com/ammaralvi21/Whack-a-Mole/blob/master/Images/Whackamole2.gif)
 
 # What the Game is?
 
